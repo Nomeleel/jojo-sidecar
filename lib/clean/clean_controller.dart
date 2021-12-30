@@ -7,6 +7,9 @@ import 'package:url_launcher/url_launcher.dart';
 class CleanController {
   final StreamController<List<String>> streamController = StreamController();
   late StreamSubscription<String> scanSubscription;
+  // TODO(Nomeleel): 开始 暂停 取消 结束
+  final ValueNotifier<bool> scanProgressStatus = ValueNotifier<bool>(false);
+  final ValueNotifier<double> scanProgress = ValueNotifier<double>(0);
   final List<String> scannedList = <String>[];
   final TextEditingController scanDirTextController = TextEditingController();
 
@@ -14,28 +17,32 @@ class CleanController {
 
   void scan() {
     _clear();
-    scanSubscription = _scan(scanDirTextController.text).listen((e) => streamController.add(scannedList..add(e)));
-    scanSubscription.onDone(() {
-      // TODO: imp
-    });
+    scanProgressStatus.value = true;
+    scanSubscription = _scanWithProcess(scanDirTextController.text).listen(
+      (e) => streamController.add(scannedList..add(e)),
+    );
+    scanSubscription.onDone(() => scanProgressStatus.value = false);
   }
 
-  Stream<String> _scan(String directoryPath) async* {
-    final directoryStream = Directory(directoryPath).list();
-    await for (FileSystemEntity item in directoryStream) {
+  Stream<String> _scanWithProcess(String directoryPath, [double begin = 0, double end = 1]) async* {
+    final directoryList = Directory(directoryPath).listSync();
+    final rangeProcess = RangeProgress(begin, end, directoryList.length);
+    for (FileSystemEntity item in directoryList) {
       final String entityPath = item.path;
-      if (FileSystemEntity.isDirectorySync(entityPath)) {
+      if (await FileSystemEntity.isDirectory(entityPath)) {
         if (scanRegExp.stringMatch(entityPath)?.isNotEmpty ?? false) {
           yield entityPath;
         } else {
-          yield* _scan(entityPath);
+          yield* _scanWithProcess(entityPath, rangeProcess.start, rangeProcess.expect);
         }
       }
+      scanProgress.value = rangeProcess.currentDone();
     }
   }
 
   void scanCanel() {
     scanSubscription.cancel();
+    scanProgressStatus.value = false;
   }
 
   void _clear() {
@@ -69,4 +76,19 @@ class CleanController {
     scanSubscription.cancel();
     scanDirTextController.dispose();
   }
+}
+
+class RangeProgress {
+  RangeProgress(this.begin, this.end, this.count);
+
+  final double begin;
+  final double end;
+  final int count;
+
+  int index = 0;
+
+  double get start => _progress(index);
+  double get expect => _progress(index + 1);
+  double currentDone() => _progress(++index);
+  double _progress(int current) => double.parse((begin + (end - begin) * (current / count)).toStringAsFixed(4));
 }

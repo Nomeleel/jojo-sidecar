@@ -27,12 +27,27 @@ class _CleanPageState extends State<CleanPage> {
                     controller: _controller.scanDirTextController,
                   ),
                 ),
-                IconButton(
-                  icon: const Icon(Icons.search),
-                  onPressed: _controller.scan,
+                ValueListenableBuilder(
+                  valueListenable: _controller.scanProgressStatus,
+                  builder: (context, bool active, child) {
+                    return IconButton(
+                      icon: Icon(active ? Icons.clear : Icons.search),
+                      onPressed: active ? _controller.scanCanel : _controller.scan,
+                    );
+                  },
                 ),
               ],
             ),
+          ),
+          ValueListenableBuilder(
+            valueListenable: _controller.scanProgress,
+            builder: (context, double progress, child) {
+              return LinearProgressIndicator(
+                value: progress,
+                color: ColorTween(begin: Colors.blue).transform(progress),
+                backgroundColor: Colors.transparent,
+              );
+            },
           ),
           Expanded(
             child: StreamBuilder(
