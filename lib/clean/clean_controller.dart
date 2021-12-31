@@ -13,7 +13,30 @@ class CleanController {
   final List<String> scannedList = <String>[];
   final TextEditingController scanDirTextController = TextEditingController();
 
-  final RegExp scanRegExp = RegExp('/(build|node_modules)\$');
+  final ValueNotifier<List<String>> cleanFolderNameList = ValueNotifier<List<String>>(<String>[]);
+
+  void addCleanFolderName(String folderName) {
+    if (folderName.isNotEmpty) {
+      cleanFolderNameList.value.removeWhere((e) => folderName == e);
+      cleanFolderNameList.value = List.from(cleanFolderNameList.value)..add(folderName);
+    }
+  }
+
+  void delCleanFolderName(String folderName) {
+    if (folderName.isNotEmpty) {
+      cleanFolderNameList.value = List.from(cleanFolderNameList.value)..removeWhere((e) => folderName == e);
+    }
+  }
+
+  RegExp cleanFolderRegExp() {
+    final folderNameRegExp = cleanFolderNameList.value.isEmpty ? '[\\S ]+' : cleanFolderNameList.value.join('|');
+    return RegExp('/($folderNameRegExp)\$');
+  }
+
+  Future<List<String>> getSuggestCleanFolderName() async {
+    // TODO(Nomeleel): Imp
+    return ['build', 'node_modules'];
+  }
 
   void scan() {
     _clear();
@@ -30,7 +53,7 @@ class CleanController {
     for (FileSystemEntity item in directoryList) {
       final String entityPath = item.path;
       if (await FileSystemEntity.isDirectory(entityPath)) {
-        if (scanRegExp.stringMatch(entityPath)?.isNotEmpty ?? false) {
+        if (cleanFolderRegExp().stringMatch(entityPath)?.isNotEmpty ?? false) {
           yield entityPath;
         } else {
           yield* _scanWithProcess(entityPath, rangeProcess.start, rangeProcess.expect);

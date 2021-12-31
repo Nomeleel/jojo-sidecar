@@ -18,30 +18,76 @@ class _CleanPageState extends State<CleanPage> {
       body: Column(
         children: [
           Container(
-            height: 100.0,
             color: Colors.purple,
-            child: Row(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Expanded(
-                  child: TextField(
-                    controller: _controller.scanDirTextController,
-                  ),
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: _controller.scanDirTextController,
+                      ),
+                    ),
+                    ValueListenableBuilder<bool>(
+                      valueListenable: _controller.scanProgressStatus,
+                      builder: (context, active, child) {
+                        return IconButton(
+                          icon: Icon(active ? Icons.clear : Icons.search),
+                          onPressed: active ? _controller.scanCanel : _controller.scan,
+                        );
+                      },
+                    ),
+                  ],
                 ),
-                ValueListenableBuilder(
-                  valueListenable: _controller.scanProgressStatus,
-                  builder: (context, bool active, child) {
-                    return IconButton(
-                      icon: Icon(active ? Icons.clear : Icons.search),
-                      onPressed: active ? _controller.scanCanel : _controller.scan,
+                ValueListenableBuilder<List<String>>(
+                  valueListenable: _controller.cleanFolderNameList,
+                  builder: (context, folderNameList, child) {
+                    return Wrap(
+                      spacing: 15,
+                      runSpacing: 15,
+                      children: folderNameList.map<Widget>((e) {
+                        return InputChip(
+                          label: Text(e),
+                          onDeleted: () => _controller.delCleanFolderName(e),
+                        );
+                      }).toList()
+                        ..add(
+                          SizedBox(
+                            width: 77,
+                            height: 20,
+                            child: TextField(
+                              onSubmitted: (text) {
+                                _controller.addCleanFolderName(text);
+                              },
+                            ),
+                          ),
+                        ),
+                    );
+                  },
+                ),
+                FutureBuilder<List<String>>(
+                  future: _controller.getSuggestCleanFolderName(),
+                  builder: (context, snapshot) {
+                    if (!snapshot.hasData) return const SizedBox.shrink();
+                    return Wrap(
+                      spacing: 15,
+                      runSpacing: 15,
+                      children: snapshot.data!.map((e) {
+                        return InputChip(
+                          label: Text(e),
+                          onPressed: () => _controller.addCleanFolderName(e),
+                        );
+                      }).toList(),
                     );
                   },
                 ),
               ],
             ),
           ),
-          ValueListenableBuilder(
+          ValueListenableBuilder<double>(
             valueListenable: _controller.scanProgress,
-            builder: (context, double progress, child) {
+            builder: (context, progress, child) {
               return LinearProgressIndicator(
                 value: progress,
                 color: ColorTween(begin: Colors.blue).transform(progress),
@@ -50,9 +96,9 @@ class _CleanPageState extends State<CleanPage> {
             },
           ),
           Expanded(
-            child: StreamBuilder(
+            child: StreamBuilder<List<String>>(
               stream: _controller.streamController.stream,
-              builder: (context, AsyncSnapshot<List<String>> snapshot) {
+              builder: (context, snapshot) {
                 if (!snapshot.hasData) return const SizedBox.shrink();
                 return ListView.separated(
                   itemCount: snapshot.data!.length,
