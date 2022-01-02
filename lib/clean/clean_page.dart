@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-
 import 'clean_controller.dart';
+import 'widget/select_folder_bar.dart';
 
 class CleanPage extends StatefulWidget {
   const CleanPage({Key? key}) : super(key: key);
@@ -24,11 +24,7 @@ class _CleanPageState extends State<CleanPage> {
               children: [
                 Row(
                   children: [
-                    Expanded(
-                      child: TextField(
-                        controller: _controller.scanDirTextController,
-                      ),
-                    ),
+                    Expanded(child: SelectFolderBar(folderPath: _controller.scanFolderPath)),
                     ValueListenableBuilder<bool>(
                       valueListenable: _controller.scanProgressStatus,
                       builder: (context, active, child) {

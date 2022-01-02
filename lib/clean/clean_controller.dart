@@ -5,15 +5,15 @@ import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class CleanController {
+  final ValueNotifier<String> scanFolderPath = ValueNotifier<String>('');
+  final ValueNotifier<List<String>> cleanFolderNameList = ValueNotifier<List<String>>(<String>[]);
+
   final StreamController<List<String>> streamController = StreamController();
   late StreamSubscription<String> scanSubscription;
   // TODO(Nomeleel): 开始 暂停 取消 结束
   final ValueNotifier<bool> scanProgressStatus = ValueNotifier<bool>(false);
   final ValueNotifier<double> scanProgress = ValueNotifier<double>(0);
   final List<String> scannedList = <String>[];
-  final TextEditingController scanDirTextController = TextEditingController();
-
-  final ValueNotifier<List<String>> cleanFolderNameList = ValueNotifier<List<String>>(<String>[]);
 
   void addCleanFolderName(String folderName) {
     if (folderName.isNotEmpty) {
@@ -39,9 +39,10 @@ class CleanController {
   }
 
   void scan() {
+    if (scanFolderPath.value.isEmpty) return;
     _clear();
     scanProgressStatus.value = true;
-    scanSubscription = _scanWithProcess(scanDirTextController.text).listen(
+    scanSubscription = _scanWithProcess(scanFolderPath.value).listen(
       (e) => streamController.add(scannedList..add(e)),
     );
     scanSubscription.onDone(() => scanProgressStatus.value = false);
@@ -91,13 +92,16 @@ class CleanController {
   }
 
   String getSimplePath(String path) {
-    return path.substring(scanDirTextController.text.length);
+    return path.substring(scanFolderPath.value.length);
   }
 
   void dispose() {
+    scanFolderPath.dispose();
+    cleanFolderNameList.dispose();
     streamController.close();
     scanSubscription.cancel();
-    scanDirTextController.dispose();
+    scanProgressStatus.dispose();
+    scanProgress.dispose();
   }
 }
 
