@@ -1,7 +1,10 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import '/model/app.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class CleanController {
@@ -34,8 +37,12 @@ class CleanController {
   }
 
   Future<List<String>> getSuggestCleanFolderName() async {
-    // TODO(Nomeleel): Imp
-    return ['build', 'node_modules'];
+    List<String>? folderList;
+    final asset = await rootBundle.loadString('assets/data/app.json');
+    if (asset.isNotEmpty) {
+      folderList = App.fromMap(jsonDecode(asset)).devFolderName;
+    }
+    return folderList ?? [];
   }
 
   void scan() {
