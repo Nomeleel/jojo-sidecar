@@ -96,29 +96,38 @@ class _CleanPageState extends State<CleanPage> {
               stream: _controller.streamController.stream,
               builder: (context, snapshot) {
                 if (!snapshot.hasData) return const SizedBox.shrink();
-                return ListView.separated(
-                  itemCount: snapshot.data!.length,
-                  itemBuilder: (context, index) {
-                    final path = snapshot.data![index];
-                    return ListTile(
-                      title: Text(_controller.getSimplePath(path)),
-                      trailing: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          IconButton(
-                            icon: const Icon(Icons.folder),
-                            onPressed: () => _controller.lunchFolder(path),
-                          ),
-                          const SizedBox(width: 15),
-                          IconButton(
-                            icon: const Icon(Icons.delete),
-                            onPressed: () => _deleteFolder(index: index, path: path),
-                          ),
-                        ],
-                      ),
-                    );
+                final folderDataSource = FolderDataSource(
+                  _controller,
+                  snapshot.data!.map((e) => FolderItem(e)).toList(),
+                  delete: () async {
+                    if (await _deleteConfirm()) {
+                            folderDataSource._deleteSelect();
+                          }
                   },
-                  separatorBuilder: (context, index) => const Divider(indent: 7, endIndent: 7),
+                );
+                return SingleChildScrollView(
+                  child: PaginatedDataTable(
+                    columns: [
+                      DataColumn(
+                        label: const Text('Folder'),
+                        onSort: (columnIndex, ascending) {},
+                      ),
+                      const DataColumn(label: Text('Action'))
+                    ],
+                    source: folderDataSource,
+                    header: const Text('Scan Result:'),
+                    actions: [
+                      IconButton(
+                        icon: const Icon(Icons.delete),
+                        onPressed: () async {
+                          if (await _deleteConfirm()) {
+                            folderDataSource._deleteSelect();
+                          }
+                        },
+                      ),
+                    ],
+                    onSelectAll: folderDataSource._onSelectAll,
+                  ),
                 );
               },
             ),
@@ -128,7 +137,7 @@ class _CleanPageState extends State<CleanPage> {
     );
   }
 
-  void _deleteFolder({int? index, String? path}) async {
+  Future<bool> _deleteConfirm() async {
     final result = await showDialog<bool>(
       routeSettings: const RouteSettings(name: 'clean_page_remove_folder_dialog'),
       context: context,
@@ -149,9 +158,7 @@ class _CleanPageState extends State<CleanPage> {
       },
     );
 
-    if (result ?? false) {
-      _controller.deleteFolder(index: index, path: path);
-    }
+    return result ?? false;
   }
 
   @override
@@ -159,4 +166,86 @@ class _CleanPageState extends State<CleanPage> {
     super.dispose();
     _controller.dispose();
   }
+}
+
+class FolderItem {
+  FolderItem(this.path);
+
+  final String path;
+
+  bool selected = false;
+}
+
+class FolderDataSource extends DataTableSource {
+  FolderDataSource(
+    this.controller,
+    this.folderList, {
+    this.delete,
+  });
+
+  final List<FolderItem> folderList;
+  final CleanController controller;
+  final Function? delete;
+
+  @override
+  bool get isRowCountApproximate => false;
+
+  @override
+  int get rowCount => folderList.length;
+
+  @override
+  int get selectedRowCount => folderList.where((e) => e.selected).length;
+
+  @override
+  DataRow? getRow(int index) {
+    if (index >= folderList.length) return null;
+    final FolderItem folderItem = folderList[index];
+    return DataRow.byIndex(
+      index: index,
+      selected: folderItem.selected,
+      onSelectChanged: (value) {
+        folderItem.selected = value ?? false;
+        notifyListeners();
+      },
+      cells: <DataCell>[
+        DataCell(Text(folderItem.path)),
+        DataCell(_actions(index, folderItem.path)),
+      ],
+    );
+  }
+
+  Widget _actions(int index, String path) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        IconButton(
+          icon: const Icon(Icons.folder),
+          onPressed: () => controller.lunchFolder(path),
+        ),
+        const SizedBox(width: 15),
+        if (delete != null)
+          IconButton(
+            icon: const Icon(Icons.delete),
+            onPressed: () {
+              delete()
+              folderList.removeAt(index);
+              notifyListeners();
+            },
+          ),
+      ],
+    );
+  }
+
+  void _onSelectAll(bool? value) {
+    void onSelect(e) => e.selected = value ?? false;
+    folderList.forEach(onSelect);
+    notifyListeners();
+  }
+
+  void _deleteSelect() {
+    folderList.removeWhere((e) => e.selected);
+    notifyListeners();
+  }
+
+  // TODO(Nomeleel): Sort
 }

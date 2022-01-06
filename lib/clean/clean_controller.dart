@@ -84,8 +84,8 @@ class CleanController {
     if (path?.isNotEmpty ?? false) {
       try {
         await Directory(path!).delete(recursive: true);
-        index ??= scannedList.indexWhere((e) => e == path);
-        streamController.add(scannedList..removeAt(index));
+        // index ??= scannedList.indexWhere((e) => e == path);
+        // streamController.add(scannedList..removeAt(index));
         return true;
       } catch (e) {
         return false;
