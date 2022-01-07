@@ -80,28 +80,6 @@ class CleanController {
     streamController.add(scannedList..clear());
   }
 
-  Future<bool> deleteFolder({int? index, String? path}) async {
-    if (path?.isNotEmpty ?? false) {
-      try {
-        await Directory(path!).delete(recursive: true);
-        // index ??= scannedList.indexWhere((e) => e == path);
-        // streamController.add(scannedList..removeAt(index));
-        return true;
-      } catch (e) {
-        return false;
-      }
-    }
-    return false;
-  }
-
-  Future<bool> lunchFolder(String path) {
-    return launch(Uri.directory(path).toString());
-  }
-
-  String getSimplePath(String path) {
-    return path.substring(scanFolderPath.value.length);
-  }
-
   void dispose() {
     scanFolderPath.dispose();
     cleanFolderNameList.dispose();

@@ -1,4 +1,8 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
+
 import 'clean_controller.dart';
 import 'widget/select_folder_bar.dart';
 
@@ -97,13 +101,9 @@ class _CleanPageState extends State<CleanPage> {
               builder: (context, snapshot) {
                 if (!snapshot.hasData) return const SizedBox.shrink();
                 final folderDataSource = FolderDataSource(
-                  _controller,
+                  _controller.scanFolderPath.value,
                   snapshot.data!.map((e) => FolderItem(e)).toList(),
-                  delete: () async {
-                    if (await _deleteConfirm()) {
-                            folderDataSource._deleteSelect();
-                          }
-                  },
+                  deleteConfirm: _deleteConfirm,
                 );
                 return SingleChildScrollView(
                   child: PaginatedDataTable(
@@ -119,11 +119,7 @@ class _CleanPageState extends State<CleanPage> {
                     actions: [
                       IconButton(
                         icon: const Icon(Icons.delete),
-                        onPressed: () async {
-                          if (await _deleteConfirm()) {
-                            folderDataSource._deleteSelect();
-                          }
-                        },
+                        onPressed: folderDataSource._deleteSelect
                       ),
                     ],
                     onSelectAll: folderDataSource._onSelectAll,
@@ -143,14 +139,14 @@ class _CleanPageState extends State<CleanPage> {
       context: context,
       builder: (context) {
         return AlertDialog(
-          title: const Text('确定删除该文件夹吗？'),
+          title: const Text('Are you sure to delete the folder?'),
           actions: <Widget>[
             TextButton(
-              child: const Text('取消', style: TextStyle(color: Colors.grey)),
+              child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
               onPressed: () => Navigator.maybeOf(context)?.pop(false),
             ),
             TextButton(
-              child: const Text('确定'),
+              child: const Text('Sure'),
               onPressed: () => Navigator.maybeOf(context)?.pop(true),
             ),
           ],
@@ -178,14 +174,14 @@ class FolderItem {
 
 class FolderDataSource extends DataTableSource {
   FolderDataSource(
-    this.controller,
+    this.scanFolderPath,
     this.folderList, {
-    this.delete,
+    required this.deleteConfirm,
   });
 
+  final String scanFolderPath;
   final List<FolderItem> folderList;
-  final CleanController controller;
-  final Function? delete;
+  final Future<bool> Function() deleteConfirm;
 
   @override
   bool get isRowCountApproximate => false;
@@ -208,7 +204,7 @@ class FolderDataSource extends DataTableSource {
         notifyListeners();
       },
       cells: <DataCell>[
-        DataCell(Text(folderItem.path)),
+        DataCell(Text(_getSimplePath(folderItem.path))),
         DataCell(_actions(index, folderItem.path)),
       ],
     );
@@ -220,18 +216,20 @@ class FolderDataSource extends DataTableSource {
       children: [
         IconButton(
           icon: const Icon(Icons.folder),
-          onPressed: () => controller.lunchFolder(path),
+          onPressed: () => launch(Uri.directory(path).toString()),
         ),
         const SizedBox(width: 15),
-        if (delete != null)
-          IconButton(
-            icon: const Icon(Icons.delete),
-            onPressed: () {
-              delete()
+        IconButton(
+          icon: const Icon(Icons.delete),
+          onPressed: () async {
+            if (!(await deleteConfirm())) return;
+
+            if (await _deleteFolder(path)) {
               folderList.removeAt(index);
               notifyListeners();
-            },
-          ),
+            }
+          },
+        ),
       ],
     );
   }
@@ -242,9 +240,30 @@ class FolderDataSource extends DataTableSource {
     notifyListeners();
   }
 
-  void _deleteSelect() {
-    folderList.removeWhere((e) => e.selected);
+  void _deleteSelect() async {
+    if (!(await deleteConfirm())) return;
+
+    final deletedList = await Future.wait(folderList.where((e) => e.selected).map((e) => _deleteFolder(e.path)));
+
+    int index = 0;
+    folderList.removeWhere((e) => e.selected && deletedList[index++]);
     notifyListeners();
+  }
+
+  Future<bool> _deleteFolder(String? path) async {
+    if (path?.isNotEmpty ?? false) {
+      try {
+        await Directory(path!).delete(recursive: true);
+        return true;
+      } catch (e) {
+        return false;
+      }
+    }
+    return false;
+  }
+
+  String _getSimplePath(String path) {
+    return path.substring(scanFolderPath.length);
   }
 
   // TODO(Nomeleel): Sort
