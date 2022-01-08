@@ -105,24 +105,35 @@ class _CleanPageState extends State<CleanPage> {
                   snapshot.data!.map((e) => FolderItem(e)).toList(),
                   deleteConfirm: _deleteConfirm,
                 );
+                bool sortAscending = true;
                 return SingleChildScrollView(
-                  child: PaginatedDataTable(
-                    columns: [
-                      DataColumn(
-                        label: const Text('Folder'),
-                        onSort: (columnIndex, ascending) {},
-                      ),
-                      const DataColumn(label: Text('Action'))
-                    ],
-                    source: folderDataSource,
-                    header: const Text('Scan Result:'),
-                    actions: [
-                      IconButton(
-                        icon: const Icon(Icons.delete),
-                        onPressed: folderDataSource._deleteSelect
-                      ),
-                    ],
-                    onSelectAll: folderDataSource._onSelectAll,
+                  child: StatefulBuilder(
+                    builder: (context, setState) {
+                      // TODO(Nomeleel): Use more config
+                      return PaginatedDataTable(
+                        header: const Text('Scan Result:'),
+                        actions: [
+                          IconButton(
+                            icon: const Icon(Icons.delete),
+                            onPressed: folderDataSource._deleteSelect,
+                          ),
+                        ],
+                        columns: [
+                          DataColumn(
+                            label: const Text('Folder'),
+                            onSort: (columnIndex, ascending) {
+                              folderDataSource._sort(ascending);
+                              setState(() => sortAscending = !sortAscending);
+                            },
+                          ),
+                          const DataColumn(label: Text('Action'))
+                        ],
+                        source: folderDataSource,
+                        onSelectAll: folderDataSource._onSelectAll,
+                        sortColumnIndex: 0,
+                        sortAscending: sortAscending,
+                      );
+                    },
                   ),
                 );
               },
@@ -164,12 +175,17 @@ class _CleanPageState extends State<CleanPage> {
   }
 }
 
-class FolderItem {
+class FolderItem extends Comparable<FolderItem> {
   FolderItem(this.path);
 
   final String path;
 
   bool selected = false;
+
+  @override
+  int compareTo(FolderItem other) {
+    return path.compareTo(other.path);
+  }
 }
 
 class FolderDataSource extends DataTableSource {
@@ -266,5 +282,8 @@ class FolderDataSource extends DataTableSource {
     return path.substring(scanFolderPath.length);
   }
 
-  // TODO(Nomeleel): Sort
+  void _sort(bool ascending) {
+    folderList.sort((a, b) => ascending ? a.path.compareTo(b.path) : b.path.compareTo(a.path));
+    notifyListeners();
+  }
 }
