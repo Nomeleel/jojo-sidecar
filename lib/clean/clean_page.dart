@@ -99,17 +99,18 @@ class _CleanPageState extends State<CleanPage> {
             child: StreamBuilder<List<String>>(
               stream: _controller.streamController.stream,
               builder: (context, snapshot) {
-                if (!snapshot.hasData) return const SizedBox.shrink();
+                if (snapshot.data?.isEmpty ?? true) return const SizedBox.shrink();
                 final folderDataSource = FolderDataSource(
                   _controller.scanFolderPath.value,
                   snapshot.data!.map((e) => FolderItem(e)).toList(),
                   deleteConfirm: _deleteConfirm,
                 );
                 bool sortAscending = true;
+                final int length = snapshot.data!.length;
+                int rowsPerPage = length <= 20 ? length : 20;
                 return SingleChildScrollView(
                   child: StatefulBuilder(
                     builder: (context, setState) {
-                      // TODO(Nomeleel): Use more config
                       return PaginatedDataTable(
                         header: const Text('Scan Result:'),
                         actions: [
@@ -132,6 +133,8 @@ class _CleanPageState extends State<CleanPage> {
                         onSelectAll: folderDataSource._onSelectAll,
                         sortColumnIndex: 0,
                         sortAscending: sortAscending,
+                        rowsPerPage: rowsPerPage,
+                        showFirstLastButtons: true,
                       );
                     },
                   ),
@@ -220,6 +223,12 @@ class FolderDataSource extends DataTableSource {
         notifyListeners();
       },
       cells: <DataCell>[
+        // DataCell(LayoutBuilder(
+        //   builder: (context, constraints) {
+        //     print(constraints);
+        //     return Text(_getSimplePath(folderItem.path));
+        //   },
+        // )),
         DataCell(Text(_getSimplePath(folderItem.path))),
         DataCell(_actions(index, folderItem.path)),
       ],
